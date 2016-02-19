@@ -1,5 +1,17 @@
 - hosts: localhost
   tasks:
+   - name: set 'telegraf' archive name
+     set_fact:
+       telegraf_archive_name: 'telegraf-0.10.2-1_linux_amd64.tar.gz'
+
+   - name: download 'telegraf'
+     get_url: url=http://get.influxdb.org/telegraf/{{telegraf_archive_name}} dest=../util/telegraf/
+
+   - name: extract 'telegraf'
+     shell: tar -xvf {{telegraf_archive_name}}
+     args:
+       chdir: ../util/telegraf
+
    - name: updates apt
      apt: update_cache=yes
 
