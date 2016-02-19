@@ -48,6 +48,9 @@ def dockerNet():
     net.addLink(d2, s3, params1={"ip": "11.0.0.254/8"})
     net.addLink(d3, s3)
 
+    info('*** Add monitoring\n')
+    p1 = net.addMonitoring(d1, d2)
+
     info('*** Starting network\n')
     net.start()
 

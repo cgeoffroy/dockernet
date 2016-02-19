@@ -91,6 +91,9 @@ import re
 import select
 import signal
 import random
+import tempfile
+import re
+import pipes
 
 from time import sleep
 from itertools import chain, groupby
@@ -969,6 +972,34 @@ class Mininet( object ):
         cls.inited = True
 
 
+class Probe( Node ):
+    """
+    Node that represents a probe
+    We rely on telegraf (https://github.com/influxdata/telegraf).
+    """
+
+    def __init__( self, name, inNamespace=True, **params ):
+        """
+        Creates a probe process as a Mininet Node
+        """
+        Node.__init__( self, name, inNamespace=inNamespace, **params )
+        self.telegraf_config_file = tempfile.NamedTemporaryFile()
+        self.telegraf_config_file.close()
+
+    def config( self, mac=None, ip=None, defaultRoute=None, lo='up', **params ):
+        """
+        See mininet.Node.Config()
+        This bypass some configuration commands. The main Probe process run telegraf. This process doesn't return which blocks the following commands.
+        """
+        pass
+
+    def terminate( self ):
+        """
+        See mininet.Node.terminate()
+        """
+        os.remove( self.telegraf_config_file.name )
+        os.killpg( self.shell.pid, signal.SIGKILL )
+
 class Dockernet( Mininet ):
     """
     A Mininet with Docker related methods.
@@ -993,6 +1024,32 @@ class Dockernet( Mininet ):
         """
         return self.removeHost(name, **params)
 
+    def addMonitoring( self, *containers ):
+        """
+        Add a probe to a topology.
+        containers: the containers to survey.
+        """
+        container_names = ''
+        for count, container in enumerate( containers ):
+            if type( container ) is Docker:
+                target_name = '%s.%s' % ( container.dnameprefix, container.name )
+                container_names += ',"' + target_name + '"'
+            else:
+                warn( 'Ignoring monitoring on %s (%s)\n' % ( container, type( container ) ) )
+        container_names = container_names[1:] # "'%s'" %
+        info( 'The following containers will be monitored: %s\n' % container_names )
+        probe = self.addHost( 'probe', cls=Probe, inNamespace=False )
+        probe.sendCmd( 'util/telegraf/telegraf_wrapper.sh',
+                       probe.telegraf_config_file.name,
+                       pipes.quote(re.escape('http://localhost:8086')),
+                       pipes.quote("foobar"),
+                       pipes.quote("foobar"),
+                       '',
+                       #pipes.quote(container_names),
+                       '1>/tmp/trace.out',
+                       '2>&1' )
+        probe.waiting = False
+        return probe
 
 class MininetWithControlNet( Mininet ):
 
