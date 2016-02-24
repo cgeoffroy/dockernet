@@ -9,11 +9,13 @@ RUN apt-get update \
     && chmod +x /usr/bin/docker \
     && echo 'Done'
 
-WORKDIR /dockernet
-
 COPY . /dockernet/
 
-RUN sed -i 's@git://@https://@g' util/install.sh \
+WORKDIR /dockernet
+
+RUN pwd \
+    && ls \
+    && sed -i 's@git://@https://@g' util/install.sh \
     && echo 'localhost ansible_connection=local' >> /etc/ansible/hosts \
     && cd /dockernet/ansible \
     && ansible-playbook _build.install.yml \
